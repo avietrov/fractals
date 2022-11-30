@@ -17,27 +17,25 @@ struct ServerError {
 pub async fn api(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let mut response = Response::new(Body::empty());
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") => {
-            match read_query(req.uri()) {
-                Ok(query) =>  {
-                    let field = parse_field_params(&query);
-                    match parse_pol_param(&query) {
-                        Ok(pol) =>  {
-                            let d = handle_image_request(pol, field);
-                            *response.body_mut() = d.into();
-                        }
-
-                        Err(err) => {
-                            *response.status_mut() = err.code;
-                        }
+        (&Method::GET, "/") => match read_query(req.uri()) {
+            Ok(query) => {
+                let field = parse_field_params(&query);
+                match parse_pol_param(&query) {
+                    Ok(pol) => {
+                        let d = handle_image_request(pol, field);
+                        *response.body_mut() = d.into();
                     }
-                } 
 
-                Err(err) => {
-                    *response.status_mut() = err.code;
+                    Err(err) => {
+                        *response.status_mut() = err.code;
+                    }
                 }
             }
-        }
+
+            Err(err) => {
+                *response.status_mut() = err.code;
+            }
+        },
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
         }
@@ -53,7 +51,9 @@ fn read_query(uri: &Uri) -> Result<HashMap<String, String>, ServerError> {
                 .into_owned()
                 .collect())
         })
-        .unwrap_or(Err(ServerError { code: StatusCode::BAD_REQUEST }))
+        .unwrap_or(Err(ServerError {
+            code: StatusCode::BAD_REQUEST,
+        }))
 }
 
 fn parse_field_params(params: &HashMap<String, String>) -> Field {
@@ -86,12 +86,16 @@ fn parse_pol_param(params: &HashMap<String, String>) -> Result<Polynomial, Serve
             if let Ok(ic) = c.parse() {
                 coefs.push(ic)
             } else {
-                return Err(ServerError { code: StatusCode::BAD_REQUEST });
+                return Err(ServerError {
+                    code: StatusCode::BAD_REQUEST,
+                });
             }
         }
         Ok(Polynomial::new(coefs))
     } else {
-        Err(ServerError { code: StatusCode::BAD_REQUEST })
+        Err(ServerError {
+            code: StatusCode::BAD_REQUEST,
+        })
     }
 }
 
