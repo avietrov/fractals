@@ -85,7 +85,15 @@ impl Div for Complex {
     }
 }
 
-// todo implement Mul for Complex for completeness sake
+impl Mul for Complex {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self {
+        let re = self.re * rhs.re - self.im * rhs.im;
+        let im = self.re * rhs.im + self.im * rhs.re;
+        return Self { re, im };
+    }
+}
 
 impl Mul<f64> for Complex {
     type Output = Self;
