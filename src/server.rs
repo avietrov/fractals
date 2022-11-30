@@ -10,15 +10,33 @@ use crate::math::polynomial::Polynomial;
 use crate::rendering::render_image;
 use crate::{newton_method_field, Field};
 
+struct ServerError {
+    code: StatusCode,
+}
+
 pub async fn api(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let mut response = Response::new(Body::empty());
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
-            let params = read_query(req.uri());
-            let field = parse_field_params(&params);
-            let pol = parse_pol_param(&params);
-            let d = handle_image_request(pol, field);
-            *response.body_mut() = d.into();
+            match read_query(req.uri()) {
+                Ok(query) =>  {
+                    let field = parse_field_params(&query);
+                    match parse_pol_param(&query) {
+                        Ok(pol) =>  {
+                            let d = handle_image_request(pol, field);
+                            *response.body_mut() = d.into();
+                        }
+
+                        Err(err) => {
+                            *response.status_mut() = err.code;
+                        }
+                    }
+                } 
+
+                Err(err) => {
+                    *response.status_mut() = err.code;
+                }
+            }
         }
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
@@ -28,24 +46,24 @@ pub async fn api(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(response)
 }
 
-fn read_query(uri: &Uri) -> HashMap<String, String> {
+fn read_query(uri: &Uri) -> Result<HashMap<String, String>, ServerError> {
     uri.query()
         .map(|v| {
-            url::form_urlencoded::parse(v.as_bytes())
+            Ok(url::form_urlencoded::parse(v.as_bytes())
                 .into_owned()
-                .collect()
+                .collect())
         })
-        .unwrap_or_else(HashMap::new)
+        .unwrap_or(Err(ServerError { code: StatusCode::BAD_REQUEST }))
 }
 
 fn parse_field_params(params: &HashMap<String, String>) -> Field {
-    let tsize: f64 = parse_param_f64(params, "tw", 10.);
+    let tw: f64 = parse_param_f64(params, "tw", 10.);
     let tx: f64 = parse_param_f64(params, "tx", -5.);
     let ty: f64 = parse_param_f64(params, "ty", -5.);
 
     Field {
         source: Complex { re: tx, im: ty },
-        size: tsize,
+        size: tw,
         grid: 512,
     }
 }
@@ -60,12 +78,21 @@ fn parse_param_f64(params: &HashMap<String, String>, name: &str, default: f64) -
     default
 }
 
-fn parse_pol_param(params: &HashMap<String, String>) -> Polynomial {
-    let coef: Vec<i32> = params
-        .get("pol")
-        .map(|s| s.split(",").map(|s| s.parse().unwrap()).collect())
-        .unwrap_or(vec![-1, 0, 0, 1]);
-    Polynomial::new(coef)
+fn parse_pol_param(params: &HashMap<String, String>) -> Result<Polynomial, ServerError> {
+    if let Some(param) = params.get("pol") {
+        let string_coefs = param.split(",");
+        let mut coefs: Vec<i32> = vec![];
+        for c in string_coefs {
+            if let Ok(ic) = c.parse() {
+                coefs.push(ic)
+            } else {
+                return Err(ServerError { code: StatusCode::BAD_REQUEST });
+            }
+        }
+        Ok(Polynomial::new(coefs))
+    } else {
+        Err(ServerError { code: StatusCode::BAD_REQUEST })
+    }
 }
 
 fn handle_image_request(pol: Polynomial, field: Field) -> Vec<u8> {
@@ -77,8 +104,6 @@ fn handle_image_request(pol: Polynomial, field: Field) -> Vec<u8> {
 
 fn serialize_image(image: RgbImage) -> Vec<u8> {
     let mut data = Cursor::new(Vec::new());
-    image
-        .write_to(&mut data, image::ImageOutputFormat::Jpeg(255))
-        .expect("Unable to write");
+    image.write_to(&mut data, image::ImageOutputFormat::Jpeg(255));
     data.get_ref().clone()
 }
