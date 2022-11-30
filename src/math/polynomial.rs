@@ -45,19 +45,18 @@ impl Polynomial {
         }
         acc
     }
+}
 
-    // todo do I need this method?
-    fn show_part(index: usize, coef: i32) -> String {
-        let s_coef = if coef == 1 {
-            String::from("")
-        } else {
-            format!("{}", coef)
-        };
-        match index {
-            0 => format!("{}", coef),
-            1 => format!("{}x", s_coef),
-            _ => format!("{}x^{}", s_coef, index),
-        }
+fn show_part(index: usize, coef: i32) -> String {
+    let s_coef = if coef == 1 {
+        String::from("")
+    } else {
+        format!("{}", coef)
+    };
+    match index {
+        0 => format!("{}", coef),
+        1 => format!("{}x", s_coef),
+        _ => format!("{}x^{}", s_coef, index),
     }
 }
 
@@ -68,7 +67,7 @@ impl fmt::Display for Polynomial {
             .iter()
             .enumerate()
             .filter(|(_, coef)| **coef > 0)
-            .map(|(index, coef)| Polynomial::show_part(index, *coef))
+            .map(|(index, coef)| show_part(index, *coef))
             .reduce(|a, b| a + " + " + &b)
             .unwrap_or_else(|| String::from(""));
 
