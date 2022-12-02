@@ -6,6 +6,7 @@ use itertools::Itertools;
 
 use math::complex::Complex;
 use math::polynomial::Polynomial;
+use rayon::prelude::*;
 
 // retpresentation of a complex plane area starting at source and growing by size in both dimensions
 // the grid defines how to turn the continuous plane into descrete values
@@ -32,7 +33,7 @@ pub fn newton_method_field(pol: &Polynomial, field: &Field, max_iter: u32) -> Ve
 
     field
         .values()
-        .iter()
+        .par_iter()
         .map(|point| newton_method_approximate(&pol, &dpol, point, max_iter))
         .collect()
 }

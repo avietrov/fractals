@@ -634,6 +634,7 @@ dependencies = [
  "indicatif",
  "itertools",
  "rand",
+ "rayon",
  "tokio",
  "url",
  "use",
