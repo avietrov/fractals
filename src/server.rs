@@ -21,14 +21,8 @@ pub async fn api(req: Request<Body>) -> Result<Response<Body>, Infallible> {
             Ok(query) => {
                 let field = parse_field_params(&query);
                 match parse_pol_param(&query) {
-                    Ok(pol) => {
-                        let d = handle_image_request(pol, field);
-                        *response.body_mut() = d.into();
-                    }
-
-                    Err(err) => {
-                        *response.status_mut() = err.code;
-                    }
+                    Ok(pol) => *response.body_mut() = handle_image_request(pol, field).into(),
+                    Err(err) => *response.status_mut() = err.code,
                 }
             }
 
