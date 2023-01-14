@@ -14,11 +14,14 @@ use rayon::prelude::*;
 // the area is always a square for simplicity, size defines the side of the square
 // grid is for one dimension as well, so a field with size 10 and grid 4 will be of area 10*10 = 100
 // and, when discretized, will have 4*4=16 points.
+
+#[derive(Debug, Copy, Clone)]
 pub struct Field {
     pub source: Complex,
     pub size: f64,
     pub grid: u32,
 }
+
 pub struct Solution {
     pub root: Complex,
     pub iter: u32,
@@ -28,14 +31,18 @@ pub struct Solution {
 // todo clean up the abstractoin here: we path a 2d field,
 // but the return type is a vector it is just an assumption
 // that the 1d solutions vector is mapped back to the 2d field
-pub fn newton_method_field(pol: &Polynomial, field: &Field, max_iter: u32) -> Vec<Solution> {
+pub async fn newton_method_field(pol: Polynomial, field: Field, max_iter: u32) -> Vec<Solution> {
     let dpol = pol.derivative();
-
-    field
-        .values()
-        .par_iter()
-        .map(|point| newton_method_approximate(&pol, &dpol, point, max_iter))
-        .collect()
+    let (send, recv) = tokio::sync::oneshot::channel();
+    rayon::spawn(move || {
+        let solution = field
+            .values()
+            .par_iter()
+            .map(|point| newton_method_approximate(&pol, &dpol, point, max_iter))
+            .collect();
+        let _ = send.send(solution);
+    });
+    recv.await.expect("Panic in rayon::spawn")
 }
 
 // find the root point of the fractal using the newton's approximation method for one starting point

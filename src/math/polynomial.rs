@@ -3,7 +3,7 @@ use std::fmt;
 
 // represents a polynomial
 // the i-th coefficient is the coefficiet in front of x^i
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Polynomial {
     coeff: Vec<i32>,
 }

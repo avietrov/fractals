@@ -35,7 +35,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                     size: 10.0,
                     grid: grid,
                 };
-                newton_method_field(&black_box(pol), &black_box(field), 100);
+                newton_method_field(black_box(pol), black_box(field), 100);
             })
         });
     }
