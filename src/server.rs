@@ -21,7 +21,10 @@ pub async fn api(req: Request<Body>) -> Result<Response<Body>, Infallible> {
             Ok(query) => {
                 let field = parse_field_params(&query);
                 match parse_pol_param(&query) {
-                    Ok(pol) => *response.body_mut() = handle_image_request(pol, field).await.into(),
+                    Ok(pol) => match handle_image_request(pol, field).await {
+                        Ok(payload) => *response.body_mut() = payload.into(),
+                        Err(err) => *response.status_mut() = err.code,
+                    },
                     Err(err) => *response.status_mut() = err.code,
                 }
             }
@@ -93,15 +96,21 @@ fn parse_pol_param(params: &HashMap<String, String>) -> Result<Polynomial, Serve
     }
 }
 
-async fn handle_image_request(pol: Polynomial, field: Field) -> Vec<u8> {
+async fn handle_image_request(pol: Polynomial, field: Field) -> Result<Vec<u8>, ServerError> {
     let max_iter = 100;
-    let solutins = newton_method_field(&pol, &field, max_iter);
+    let solutins = newton_method_field(pol, field, max_iter).await;
     let image = render_image(&solutins, &field, max_iter);
     serialize_image(image)
 }
 
-fn serialize_image(image: RgbImage) -> Vec<u8> {
+fn serialize_image(image: RgbImage) -> Result<Vec<u8>, ServerError> {
     let mut data = Cursor::new(Vec::new());
-    image.write_to(&mut data, image::ImageOutputFormat::Jpeg(255));
-    data.get_ref().clone()
+    let res = image.write_to(&mut data, image::ImageOutputFormat::Jpeg(255));
+    if res.is_ok() {
+        return Ok(data.get_ref().clone());
+    } else {
+        return Err(ServerError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+        });
+    }
 }
